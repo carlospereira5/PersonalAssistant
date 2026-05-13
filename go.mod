@@ -4,6 +4,8 @@ go 1.26.1
 
 require (
 	github.com/charmbracelet/log v1.0.0
+	github.com/evgensoft/ddgo v0.0.0-20250604183002-54c292420e4d
+	github.com/k3a/html2text v1.4.0
 	github.com/mdp/qrterminal/v3 v3.2.1
 	github.com/sashabaranov/go-openai v1.41.2
 	go.mau.fi/whatsmeow v0.0.0-20260513140310-c551a4055c0f
@@ -14,6 +16,8 @@ require (
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
+	github.com/PuerkitoBio/goquery v1.10.3 // indirect
+	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/beeper/argo-go v1.1.2 // indirect
 	github.com/charmbracelet/colorprofile v0.2.3-0.20250311203215-f60798e515dc // indirect

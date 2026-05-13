@@ -22,13 +22,18 @@
 
 El feature más pedido en TODOS los asistentes personales open source.
 
-- [ ] **Implementar `duckduckgo-go`** — Búsqueda web sin API key, simple y rápida
-- [ ] **Tool `web_search(query)`** — Módulo Gen2 `search` con una sola tool que recibe query y devuelve resultados estructurados
-- [ ] **Tool `fetch_url(url)`** — Extraer contenido de una URL y convertirlo a texto plano para el contexto del LLM
-- [ ] **Integración en system prompt** — El agente sabe que puede buscar en internet cuando el usuario lo pide
+- [x] **Módulo Gen2 `search`** — `internal/modules/search/` con `web_search(query)` y `fetch_url(url)`
+- [x] **Tool `web_search(query)`** — Búsqueda DuckDuckGo via `github.com/evgensoft/ddgo`, retorna hasta 5 resultados
+- [x] **Tool `fetch_url(url)`** — HTTP GET + validación Content-Type + conversión HTML→texto (html2text) + truncado a 8K chars
+- [x] **Integración en system prompt** — Herramientas listadas con instrucciones de uso en cadena
+- [x] **`get_current_time()`** — Tool añadida al módulo tasks para que el LLM resuelva fechas sin depender de su conocimiento interno
 
-**Archivos:** `internal/modules/search/{module,tools,read,write}.go`
-**Dependencia:** `github.com/duckduckgo-go/duckduckgo-go`
+> ⚠️ **Limitación conocida**: `fetch_url` NO ejecuta JavaScript. Sitios SPA (React, Vue) que cargan contenido dinámicamente devuelven solo la navegación vacía. Funciona bien con contenido estático: Wikipedia, documentación, blogs, noticias.
+> 
+> **Próximos pasos**: Explorar integración con wttr.in para clima, o agregar un provider específico para sitios SPA vía chromedp/playwright si es necesario.
+
+**Archivos:** `internal/modules/search/{module,tools,read,search,fetch}.go`
+**Dependencias:** `github.com/evgensoft/ddgo`, `github.com/k3a/html2text`
 
 ### 2. Scheduled Routines (Cron)
 
