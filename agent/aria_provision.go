@@ -70,6 +70,7 @@ func (a *Aria) buildDeps() PortDeps {
 		Config:    a.repos.Config,
 		Tasks:     a.repos.Tasks,
 		Reminders: a.repos.Reminders,
+		Scheduler: a.repos.Scheduler,
 	}
 }
 

@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strings"
 
-	ddgo "github.com/evgensoft/ddgo"
 	"github.com/k3a/html2text"
 )
 
@@ -20,7 +19,7 @@ func (m *Module) fetch(ctx context.Context, url string) (map[string]any, error) 
 	if err != nil {
 		return nil, fmt.Errorf("fetch_url: %w", err)
 	}
-	req.Header.Set("User-Agent", ddgo.DefaultUserAgent)
+	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; PersonalAssistant/1.0)")
 
 	resp, err := m.client.Do(req)
 	if err != nil {

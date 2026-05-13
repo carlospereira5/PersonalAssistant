@@ -22,18 +22,19 @@
 
 El feature más pedido en TODOS los asistentes personales open source.
 
-- [x] **Módulo Gen2 `search`** — `internal/modules/search/` con `web_search(query)` y `fetch_url(url)`
-- [x] **Tool `web_search(query)`** — Búsqueda DuckDuckGo via `github.com/evgensoft/ddgo`, retorna hasta 5 resultados
-- [x] **Tool `fetch_url(url)`** — HTTP GET + validación Content-Type + conversión HTML→texto (html2text) + truncado a 8K chars
-- [x] **Integración en system prompt** — Herramientas listadas con instrucciones de uso en cadena
-- [x] **`get_current_time()`** — Tool añadida al módulo tasks para que el LLM resuelva fechas sin depender de su conocimiento interno
+- [x] **`web_search(query)`** — Búsqueda Google Search Grounding vía Gemini REST API. Reemplazó DuckDuckGo.
+- [x] **`fetch_url(url)`** — HTTP GET + Content-Type check + html→texto + truncado a 8K chars
+- [x] **Modo dual Gemini** — Cuando `GEMINI_API_KEY` está configurada:
+  - Chat: function declarations (tasks, scheduler) + `web_search` tool via Gemini REST
+  - Scheduler: GoogleSearch built-in para prompts de texto plano automáticos
+- [x] **System prompt actualizado** — Instrucciones de búsqueda simplificadas
 
-> ⚠️ **Limitación conocida**: `fetch_url` NO ejecuta JavaScript. Sitios SPA (React, Vue) que cargan contenido dinámicamente devuelven solo la navegación vacía. Funciona bien con contenido estático: Wikipedia, documentación, blogs, noticias.
+> ⚠️ **Limitación conocida**: Gemini 2.5 Flash NO permite GoogleSearch + function declarations. El split por tipo de sesión lo resuelve.
 > 
-> **Próximos pasos**: Explorar integración con wttr.in para clima, o agregar un provider específico para sitios SPA vía chromedp/playwright si es necesario.
+> **Próximo paso**: Al migrar a Gemini 3+, combinar ambas en una sesión.
 
-**Archivos:** `internal/modules/search/{module,tools,read,search,fetch}.go`
-**Dependencias:** `github.com/evgensoft/ddgo`, `github.com/k3a/html2text`
+**Archivos:** `agent/llm/gemini.go`, `agent/llm/gemini_session.go`, `internal/modules/search/gemini_search.go`
+**Dependencia nueva:** `google.golang.org/genai`
 
 ### 2. Scheduled Routines (Cron)
 
