@@ -1,10 +1,14 @@
 // Package main — entry point del asistente personal.
 //
-// Uso:
+// Uso con Infisical:
+//
+//	infisical run -- go run ./cmd/assistant
+//
+// O directo con env vars:
 //
 //	export OPENAI_API_KEY=sk-...
-//	export OPENAI_MODEL=gpt-4o-mini
-//	export DATABASE_PATH=./assistant.db
+//	export OPENAI_BASE_URL=https://openrouter.ai/api/v1
+//	export OPENAI_MODEL=google/gemini-2.5-flash
 //	export ADMIN_JID=56912345678@s.whatsapp.net
 //	export ALLOWED_NUMBERS=56912345678
 //	go run ./cmd/assistant
@@ -32,13 +36,19 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
+	logLevel := getEnv("LOG_LEVEL", "info")
+	parsedLevel, err := charm.ParseLevel(logLevel)
+	if err != nil {
+		parsedLevel = charm.InfoLevel
+	}
 	logger := charm.NewWithOptions(os.Stderr, charm.Options{
-		ReportCaller: true,
-		Level:        charm.InfoLevel,
+		ReportCaller: parsedLevel >= charm.DebugLevel,
+		Level:        parsedLevel,
 	})
 
-	// ── Config desde environment ──────────────────────────────────────────────
+	// ── Config desde environment (Infisical inyecta estas vars) ──────────────
 	openAIKey := getEnv("OPENAI_API_KEY", "")
+	openAIBaseURL := getEnv("OPENAI_BASE_URL", "")
 	openAIModel := getEnv("OPENAI_MODEL", "gpt-4o-mini")
 	dbPath := getEnv("DATABASE_PATH", "./assistant.db")
 	adminJID := getEnv("ADMIN_JID", "")
@@ -46,14 +56,18 @@ func main() {
 	whatsAppDBPath := getEnv("WHATSAPP_DB_PATH", "./whatsapp.db")
 
 	if openAIKey == "" {
-		logger.Fatal("OPENAI_API_KEY es requerida")
+		logger.Fatal("OPENAI_API_KEY es requerida — configurala en Infisical")
 	}
 	if adminJID == "" {
-		logger.Fatal("ADMIN_JID es requerida (ej: 56912345678@s.whatsapp.net)")
+		logger.Fatal("ADMIN_JID es requerida — configurala en Infisical")
 	}
 
 	// ── LLM ───────────────────────────────────────────────────────────────────
-	llmClient := openai.NewClient(openAIKey)
+	oc := openai.DefaultConfig(openAIKey)
+	if openAIBaseURL != "" {
+		oc.BaseURL = openAIBaseURL
+	}
+	llmClient := openai.NewClientWithConfig(oc)
 	llm := agentllm.NewOpenAILLM(llmClient, openAIModel, openAIModel, nil)
 
 	// ── Base de datos ─────────────────────────────────────────────────────────
