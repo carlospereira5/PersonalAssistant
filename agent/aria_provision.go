@@ -67,6 +67,7 @@ func (a *Aria) buildDeps() PortDeps {
 		Logger:    a.logger,
 		LLM:       a.llm,
 		Messenger: a.messenger,
+		Config:    a.repos.Config,
 		Tasks:     a.repos.Tasks,
 		Reminders: a.repos.Reminders,
 	}

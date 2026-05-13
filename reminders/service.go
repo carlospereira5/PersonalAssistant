@@ -16,16 +16,18 @@ const tickInterval = 30 * time.Second
 
 // Service revisa periódicamente los recordatorios pendientes y los envía
 // por el Messenger configurado al JID del administrador.
+// El JID se obtiene automáticamente de la DB (config table) — el bot lo guarda
+// cuando recibe el primer mensaje de un número autorizado.
 type Service struct {
-	repo      domain.ReminderRepository
-	messenger agent.Messenger
-	logger    *charm.Logger
-	adminJID  string // JID de WhatsApp del administrador
+	repo       domain.ReminderRepository
+	configRepo domain.ConfigRepository
+	messenger  agent.Messenger
+	logger     *charm.Logger
 }
 
-// New crea un Service que envía recordatorios al JID indicado.
-func New(repo domain.ReminderRepository, messenger agent.Messenger, logger *charm.Logger, adminJID string) *Service {
-	return &Service{repo: repo, messenger: messenger, logger: logger, adminJID: adminJID}
+// New crea un Service. El JID del admin se lee de configRepo en cada ciclo.
+func New(repo domain.ReminderRepository, configRepo domain.ConfigRepository, messenger agent.Messenger, logger *charm.Logger) *Service {
+	return &Service{repo: repo, configRepo: configRepo, messenger: messenger, logger: logger}
 }
 
 // Start bloquea hasta que ctx sea cancelado. Debe llamarse en una goroutine.
@@ -44,6 +46,12 @@ func (s *Service) Start(ctx context.Context) {
 }
 
 func (s *Service) dispatch(ctx context.Context) {
+	adminJID, err := s.configRepo.Get(ctx, "admin_jid")
+	if err != nil {
+		s.logger.Warn("Admin JID no configurado — esperando primer mensaje del usuario")
+		return
+	}
+
 	pending, err := s.repo.GetPending(ctx)
 	if err != nil {
 		s.logger.Error("Error obteniendo recordatorios pendientes", "err", err)
@@ -51,7 +59,7 @@ func (s *Service) dispatch(ctx context.Context) {
 	}
 	for _, pr := range pending {
 		msg := fmt.Sprintf("⏰ Recordatorio: *%s*", pr.TaskName)
-		if err := s.messenger.Send(ctx, agent.TextMessage{To: s.adminJID, Content: msg}); err != nil {
+		if err := s.messenger.Send(ctx, agent.TextMessage{To: adminJID, Content: msg}); err != nil {
 			s.logger.Error("Error enviando recordatorio", "reminder_id", pr.ID, "task_id", pr.TaskID, "err", err)
 			continue
 		}

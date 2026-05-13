@@ -43,6 +43,14 @@ func (b *Bot) handleEvent(evt interface{}) {
 		return
 	}
 
+	// Guardar el JID del admin automáticamente.
+	senderJID := types.NewJID(msg.Info.Sender.User, msg.Info.Sender.Server).String()
+	if err := b.configRepo.Set(context.Background(), "admin_jid", senderJID); err != nil {
+		b.logger.Warn("No se pudo guardar admin_jid", "jid", senderJID, "err", err)
+	} else {
+		b.logger.Debug("Admin JID actualizado", "jid", senderJID)
+	}
+
 	go b.dispatchMessage(msg)
 }
 

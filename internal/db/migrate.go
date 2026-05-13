@@ -23,6 +23,10 @@ func (s *SQLite) MigrateContext(ctx context.Context) error {
 			remind_at  TEXT NOT NULL,
 			sent       INTEGER NOT NULL DEFAULT 0
 		) STRICT;`,
+		`CREATE TABLE IF NOT EXISTS config (
+			key   TEXT PRIMARY KEY,
+			value TEXT NOT NULL
+		) STRICT;`,
 	}
 
 	for _, query := range queries {

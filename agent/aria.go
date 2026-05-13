@@ -33,6 +33,7 @@ type Aria struct {
 
 // Repos agrupa los repositorios de dominio disponibles para los módulos.
 type Repos struct {
+	Config    domain.ConfigRepository
 	Tasks     domain.TaskRepository
 	Reminders domain.ReminderRepository
 }

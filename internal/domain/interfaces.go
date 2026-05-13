@@ -17,3 +17,9 @@ type ReminderRepository interface {
 	GetPending(ctx context.Context) ([]PendingReminder, error)
 	MarkSent(ctx context.Context, id int64) error
 }
+
+// ConfigRepository defines persistence for key-value config.
+type ConfigRepository interface {
+	Get(ctx context.Context, key string) (string, error)
+	Set(ctx context.Context, key, value string) error
+}

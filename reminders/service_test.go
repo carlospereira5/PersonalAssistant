@@ -32,6 +32,22 @@ func (m *mockReminderRepo) MarkSent(_ context.Context, id int64) error {
 	return nil
 }
 
+type mockConfigRepo struct {
+	values map[string]string
+}
+
+func (m *mockConfigRepo) Get(_ context.Context, key string) (string, error) {
+	v, ok := m.values[key]
+	if !ok {
+		return "", errors.New("not found")
+	}
+	return v, nil
+}
+func (m *mockConfigRepo) Set(_ context.Context, key, value string) error {
+	m.values[key] = value
+	return nil
+}
+
 type mockMessenger struct {
 	sent []agent.Message
 	err  error
@@ -45,7 +61,8 @@ func (m *mockMessenger) Send(_ context.Context, msg agent.Message) error {
 const testJID = "56912345678@s.whatsapp.net"
 
 func newTestService(repo domain.ReminderRepository, msg agent.Messenger) *Service {
-	return New(repo, msg, charm.New(io.Discard), testJID)
+	cfg := &mockConfigRepo{values: map[string]string{"admin_jid": testJID}}
+	return New(repo, cfg, msg, charm.New(io.Discard))
 }
 
 // ── tests ────────────────────────────────────────────────────────────────────
@@ -72,6 +89,23 @@ func TestDispatch_SendsAndMarks(t *testing.T) {
 	}
 	if len(repo.markCalls) != 1 || repo.markCalls[0] != 5 {
 		t.Errorf("MarkSent calls = %v, want [5]", repo.markCalls)
+	}
+}
+
+func TestDispatch_NoAdminJID_DoesNotPanic(t *testing.T) {
+	repo := &mockReminderRepo{
+		pending: []domain.PendingReminder{
+			{ID: 1, TaskID: 1, TaskName: "Tarea"},
+		},
+	}
+	messenger := &mockMessenger{}
+	cfg := &mockConfigRepo{values: map[string]string{}}
+	svc := New(repo, cfg, messenger, charm.New(io.Discard))
+
+	svc.dispatch(context.Background())
+
+	if len(messenger.sent) != 0 {
+		t.Errorf("expected 0 sends when no admin_jid, got %d", len(messenger.sent))
 	}
 }
 

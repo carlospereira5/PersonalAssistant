@@ -9,7 +9,6 @@
 //	export OPENAI_API_KEY=sk-...
 //	export OPENAI_BASE_URL=https://openrouter.ai/api/v1
 //	export OPENAI_MODEL=google/gemini-2.5-flash
-//	export ADMIN_JID=56912345678@s.whatsapp.net
 //	export ALLOWED_NUMBERS=56912345678
 //	go run ./cmd/assistant
 package main
@@ -51,15 +50,11 @@ func main() {
 	openAIBaseURL := getEnv("OPENAI_BASE_URL", "")
 	openAIModel := getEnv("OPENAI_MODEL", "gpt-4o-mini")
 	dbPath := getEnv("DATABASE_PATH", "./assistant.db")
-	adminJID := getEnv("ADMIN_JID", "")
 	allowedRaw := getEnv("ALLOWED_NUMBERS", "")
 	whatsAppDBPath := getEnv("WHATSAPP_DB_PATH", "./whatsapp.db")
 
 	if openAIKey == "" {
 		logger.Fatal("OPENAI_API_KEY es requerida — configurala en Infisical")
-	}
-	if adminJID == "" {
-		logger.Fatal("ADMIN_JID es requerida — configurala en Infisical")
 	}
 
 	// ── LLM ───────────────────────────────────────────────────────────────────
@@ -83,6 +78,7 @@ func main() {
 
 	taskRepo := db.NewTaskRepo(sqlite)
 	reminderRepo := db.NewReminderRepo(sqlite)
+	configRepo := db.NewConfigRepo(sqlite)
 
 	// ── Módulos ───────────────────────────────────────────────────────────────
 	tasksModule := tasks.New()
@@ -92,6 +88,7 @@ func main() {
 	// ── Aria (orquestador) ────────────────────────────────────────────────────
 	aria := agent.New(llm, sqlite.Db, logger, modules,
 		agent.WithRepos(agent.Repos{
+			Config:    configRepo,
 			Tasks:     taskRepo,
 			Reminders: reminderRepo,
 		}),
@@ -99,7 +96,7 @@ func main() {
 
 	// ── WhatsApp ──────────────────────────────────────────────────────────────
 	allowedNumbers := strings.FieldsFunc(allowedRaw, func(r rune) bool { return r == ',' || r == ' ' })
-	whatsAppBot, err := whatsapp.New(ctx, aria, whatsAppDBPath, allowedNumbers, "", logger)
+	whatsAppBot, err := whatsapp.New(ctx, aria, whatsAppDBPath, allowedNumbers, "", logger, configRepo)
 	if err != nil {
 		logger.Fatal("Error creando bot de WhatsApp", "err", err)
 	}
@@ -108,7 +105,7 @@ func main() {
 	aria.SetMessenger(whatsAppMessenger)
 
 	// ── Reminders service ─────────────────────────────────────────────────────
-	reminderSvc := reminders.New(reminderRepo, whatsAppMessenger, logger.WithPrefix("Reminders"), adminJID)
+	reminderSvc := reminders.New(reminderRepo, configRepo, whatsAppMessenger, logger.WithPrefix("Reminders"))
 	go reminderSvc.Start(ctx)
 
 	// ── Start ─────────────────────────────────────────────────────────────────

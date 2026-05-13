@@ -17,21 +17,23 @@ import (
 	_ "modernc.org/sqlite"
 
 	"github.com/carlospereira5/PersonalAssistant/agent"
+	"github.com/carlospereira5/PersonalAssistant/internal/domain"
 )
 
 // Bot es el wrapper de whatsmeow que conecta WhatsApp con Aria.
 type Bot struct {
-	client   *whatsmeow.Client
-	agent    *agent.Aria
-	allowed  map[string]bool // clave: número normalizado sin '+' ni servidor
-	groupJID types.JID
-	logger   *charm.Logger
+	client     *whatsmeow.Client
+	agent      *agent.Aria
+	allowed    map[string]bool // clave: número normalizado sin '+' ni servidor
+	groupJID   types.JID
+	configRepo domain.ConfigRepository
+	logger     *charm.Logger
 }
 
 // New crea un Bot de WhatsApp listo para conectar.
 // allowedNumbers son los números autorizados en formato "+5491112345678" o "5491112345678".
 // groupJID es el JID del grupo donde Aria escucha (vacío = modo DM).
-func New(ctx context.Context, ag *agent.Aria, dbPath string, allowedNumbers []string, groupJID string, logger *charm.Logger) (*Bot, error) {
+func New(ctx context.Context, ag *agent.Aria, dbPath string, allowedNumbers []string, groupJID string, logger *charm.Logger, cfgRepo domain.ConfigRepository) (*Bot, error) {
 	// whatsmeow usa su propio logger; lo silenciamos excepto en WARN para no contaminar los logs.
 	dbLog := waLog.Stdout("DB", "WARN", true)
 	dsn := "file:" + dbPath + "?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)"
@@ -60,10 +62,11 @@ func New(ctx context.Context, ag *agent.Aria, dbPath string, allowedNumbers []st
 	}
 
 	bot := &Bot{
-		client:  client,
-		agent:   ag,
-		allowed: allowed,
-		logger:  logger.WithPrefix("WhatsApp"),
+		client:     client,
+		agent:      ag,
+		allowed:    allowed,
+		configRepo: cfgRepo,
+		logger:     logger.WithPrefix("WhatsApp"),
 	}
 
 	if groupJID != "" {

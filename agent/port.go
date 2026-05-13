@@ -65,6 +65,7 @@ type PortDeps struct {
 	Messenger Messenger
 
 	// Repos pre-construidos para uso directo en módulos.
+	Config    domain.ConfigRepository
 	Tasks     domain.TaskRepository
 	Reminders domain.ReminderRepository
 }
