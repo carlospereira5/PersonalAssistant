@@ -35,7 +35,7 @@ func (r *ReminderRepo) GetPending(ctx context.Context) ([]domain.PendingReminder
 		FROM task_reminders tr
 		JOIN tasks t ON tr.task_id = t.id
 		WHERE tr.sent = 0
-		  AND tr.remind_at <= datetime('now')
+		  AND datetime(tr.remind_at) <= datetime('now')
 	`)
 	if err != nil {
 		return nil, fmt.Errorf("db: get pending reminders: %w", err)

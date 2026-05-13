@@ -8,6 +8,10 @@ func (m *Module) ReadTools() []agentllm.ToolDef {
 			Name:        "get_all_tasks",
 			Description: "Retorna todas las tareas con su estado (PENDING, IN_PROGRESS, DONE, CANCELLED).",
 		},
+		{
+			Name:        "get_current_time",
+			Description: "Obtiene la fecha y hora actual en UTC y en la zona horaria del usuario (America/Santiago). Útil para resolver fechas, calcular deadlines y convertir entre zonas horarias sin depender del conocimiento interno del modelo.",
+		},
 	}
 }
 
