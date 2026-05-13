@@ -37,16 +37,22 @@ El feature más pedido en TODOS los asistentes personales open source.
 
 ### 2. Scheduled Routines (Cron)
 
-Rutinas programadas que ejecutan acciones automáticamente. No solo recordatorios de tareas existentes, sino agent executions completas.
+Rutinas programadas que ejecutan acciones automáticamente usando expresiones cron. El LLM traduce lenguaje natural a cron expressions.
 
-- [ ] **Scheduler daemon** — Background service que revisa tareas programadas cada minuto
-- [ ] **Tabla `scheduled_tasks`** — Con cron expression, prompt/tool a ejecutar, estado (active/paused), última ejecución
-- [ ] **Tool `create_routine(cron, prompt)`** — "Cada mañana a las 8, dame el briefing del día"
-- [ ] **Tool `list_routines()` / `delete_routine(id)`** — Gestión de rutinas
-- [ ] **Morning briefing** — Rutina pre-definida que lista tareas del día, próximos vencimientos, etc.
-- [ ] **Auto-recuperación** — Si una rutina falla, loguea el error y reintenta
+- [x] **Scheduler daemon** — Background service (backgroundModule) que revisa rutinas cada 60s
+- [x] **Tabla `scheduled_routines`** — Con cron expression, prompt, estado (active/paused), last_run_at, last_error, CHECK constraint
+- [x] **Tool `create_routine(cron, prompt)`** — Con validación de cron expression via robfig/cron/v3
+- [x] **Tool `list_routines()` / `delete_routine(id)` / `pause_routine(id)` / `resume_routine(id)`** — CRUD completo
+- [x] **Ejecución vía LLM** — Cada rutina ejecuta su prompt contra el LLM y entrega el resultado vía Messenger
+- [x] **Auto-recuperación** — Si una rutina falla, loguea el error, guarda last_error y continúa
+- [ ] **Morning briefing** — Rutina pre-definida que lista tareas del día (próximo feature)
 
-**Archivos:** `internal/modules/scheduler/{module,tools,read,write}.go`, `internal/db/scheduler_repo.go`
+> ⚠️ **LLM traduce lenguaje natural a cron**: el usuario escribe "cada día a las 8", el LLM llama `create_routine(cron: "0 8 * * *", prompt: "...")`. No hay parser de lenguaje natural — el modelo se encarga.
+>
+> **Limitación conocida**: Las rutinas ejecutan prompts de texto al LLM, no herramientas arbitrarias. Para ejecutar tools específicas, extender el módulo.
+
+**Archivos:** `internal/modules/scheduler/{module,tools,read,write,exec,marshal}.go`, `internal/db/scheduler_repo.go`
+**Dependencias:** `github.com/robfig/cron/v3`
 
 ---
 

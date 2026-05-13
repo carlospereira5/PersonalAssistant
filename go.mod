@@ -7,6 +7,7 @@ require (
 	github.com/evgensoft/ddgo v0.0.0-20250604183002-54c292420e4d
 	github.com/k3a/html2text v1.4.0
 	github.com/mdp/qrterminal/v3 v3.2.1
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/sashabaranov/go-openai v1.41.2
 	go.mau.fi/whatsmeow v0.0.0-20260513140310-c551a4055c0f
 	golang.org/x/sync v0.20.0

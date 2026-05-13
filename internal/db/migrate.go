@@ -27,6 +27,15 @@ func (s *SQLite) MigrateContext(ctx context.Context) error {
 			key   TEXT PRIMARY KEY,
 			value TEXT NOT NULL
 		) STRICT;`,
+		`CREATE TABLE IF NOT EXISTS scheduled_routines (
+			id          INTEGER PRIMARY KEY AUTOINCREMENT,
+			cron_expr   TEXT NOT NULL,
+			prompt      TEXT NOT NULL,
+			status      TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'paused')),
+			last_run_at TEXT,
+			last_error  TEXT DEFAULT '',
+			created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+		) STRICT;`,
 	}
 
 	for _, query := range queries {

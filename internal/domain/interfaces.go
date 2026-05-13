@@ -23,3 +23,13 @@ type ConfigRepository interface {
 	Get(ctx context.Context, key string) (string, error)
 	Set(ctx context.Context, key, value string) error
 }
+
+// SchedulerRepository defines persistence operations for scheduled routines.
+type SchedulerRepository interface {
+	Create(ctx context.Context, cronExpr, prompt string) (int64, error)
+	GetAll(ctx context.Context) ([]ScheduledRoutine, error)
+	GetByID(ctx context.Context, id int64) (ScheduledRoutine, error)
+	Delete(ctx context.Context, id int64) error
+	UpdateStatus(ctx context.Context, id int64, status string) error
+	UpdateLastRun(ctx context.Context, id int64, lastError string) error
+}

@@ -26,6 +26,7 @@ import (
 	"github.com/carlospereira5/PersonalAssistant/agent"
 	agentllm "github.com/carlospereira5/PersonalAssistant/agent/llm"
 	"github.com/carlospereira5/PersonalAssistant/internal/db"
+	"github.com/carlospereira5/PersonalAssistant/internal/modules/scheduler"
 	"github.com/carlospereira5/PersonalAssistant/internal/modules/search"
 	"github.com/carlospereira5/PersonalAssistant/internal/modules/tasks"
 	"github.com/carlospereira5/PersonalAssistant/reminders"
@@ -80,13 +81,16 @@ func main() {
 	taskRepo := db.NewTaskRepo(sqlite)
 	reminderRepo := db.NewReminderRepo(sqlite)
 	configRepo := db.NewConfigRepo(sqlite)
+	schedulerRepo := db.NewSchedulerRepo(sqlite)
 
 	// ── Módulos ───────────────────────────────────────────────────────────────
 	tasksModule := tasks.New()
 
 	searchModule := search.New()
 
-	modules := []agent.Module{tasksModule, searchModule}
+	schedulerModule := scheduler.New()
+
+	modules := []agent.Module{tasksModule, searchModule, schedulerModule}
 
 	// ── Aria (orquestador) ────────────────────────────────────────────────────
 	aria := agent.New(llm, sqlite.Db, logger, modules,
@@ -94,6 +98,7 @@ func main() {
 			Config:    configRepo,
 			Tasks:     taskRepo,
 			Reminders: reminderRepo,
+			Scheduler: schedulerRepo,
 		}),
 	)
 

@@ -36,6 +36,7 @@ type Repos struct {
 	Config    domain.ConfigRepository
 	Tasks     domain.TaskRepository
 	Reminders domain.ReminderRepository
+	Scheduler domain.SchedulerRepository
 }
 
 // New crea una Aria con arquitectura de módulos.

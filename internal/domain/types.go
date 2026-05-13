@@ -18,3 +18,14 @@ type PendingReminder struct {
 	TaskID   int64
 	TaskName string
 }
+
+// ScheduledRoutine represents a recurring automated routine.
+type ScheduledRoutine struct {
+	ID        int64
+	CronExpr  string
+	Prompt    string
+	Status    string // "active" or "paused"
+	LastRunAt *time.Time
+	LastError string
+	CreatedAt time.Time
+}

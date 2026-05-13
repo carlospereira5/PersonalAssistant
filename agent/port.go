@@ -68,6 +68,7 @@ type PortDeps struct {
 	Config    domain.ConfigRepository
 	Tasks     domain.TaskRepository
 	Reminders domain.ReminderRepository
+	Scheduler domain.SchedulerRepository
 }
 
 // PortDB — acceso controlado a la base de datos.
