@@ -18,7 +18,12 @@ func (m *Module) Write(ctx context.Context, tool string, args map[string]any) (m
 		}
 		m.logger.Info("Tarea creada", "id", id, "name", name)
 
-		// Guardar recordatorios si se especificaron.
+		// Siempre crear un recordatorio automático para el deadline.
+		if _, err := m.reminders.Create(ctx, id, deadline); err != nil {
+			m.logger.Warn("Error guardando recordatorio automático del deadline", "task_id", id, "remind_at", deadline, "err", err)
+		}
+
+		// Guardar recordatorios adicionales si se especificaron.
 		if raw, ok := args["reminders"]; ok {
 			if list, ok := raw.([]any); ok {
 				for _, item := range list {
@@ -27,7 +32,7 @@ func (m *Module) Write(ctx context.Context, tool string, args map[string]any) (m
 						continue
 					}
 					if _, err := m.reminders.Create(ctx, id, ts); err != nil {
-						m.logger.Warn("Error guardando recordatorio", "task_id", id, "remind_at", ts, "err", err)
+						m.logger.Warn("Error guardando recordatorio extra", "task_id", id, "remind_at", ts, "err", err)
 					}
 				}
 			}

@@ -62,7 +62,8 @@ var _ agent.DataWriter = (*Module)(nil)
 // ── tests ────────────────────────────────────────────────────────────────────
 
 func TestWriteCreateTask_WithoutReminders(t *testing.T) {
-	m := newModule(&mockTaskRepo{createID: 42}, &mockReminderRepo{})
+	reminderRepo := &mockReminderRepo{}
+	m := newModule(&mockTaskRepo{createID: 42}, reminderRepo)
 
 	result, err := m.Write(context.Background(), "create_task", map[string]any{
 		"name":     "Comprar pan",
@@ -76,6 +77,17 @@ func TestWriteCreateTask_WithoutReminders(t *testing.T) {
 	}
 	if result["name"] != "Comprar pan" {
 		t.Errorf("Write(create_task) name = %q, want %q", result["name"], "Comprar pan")
+	}
+
+	// Debe crear un reminder automático para el deadline.
+	if len(reminderRepo.calls) != 1 {
+		t.Fatalf("reminders.Create calls = %d, want 1 (auto deadline reminder)", len(reminderRepo.calls))
+	}
+	if reminderRepo.calls[0].taskID != 42 {
+		t.Errorf("reminder taskID = %d, want 42", reminderRepo.calls[0].taskID)
+	}
+	if reminderRepo.calls[0].remindAt != "2026-05-14T00:00:00Z" {
+		t.Errorf("reminder remindAt = %q, want %q", reminderRepo.calls[0].remindAt, "2026-05-14T00:00:00Z")
 	}
 }
 
@@ -92,22 +104,32 @@ func TestWriteCreateTask_WithReminders(t *testing.T) {
 		t.Fatalf("Write(create_task) error = %v, want nil", err)
 	}
 
-	if len(reminderRepo.calls) != 2 {
-		t.Fatalf("reminders.Create calls = %d, want 2", len(reminderRepo.calls))
+	// Debe crear un reminder para el deadline + los 2 explícitos.
+	if len(reminderRepo.calls) != 3 {
+		t.Fatalf("reminders.Create calls = %d, want 3 (1 deadline + 2 explicit)", len(reminderRepo.calls))
 	}
+	// Primer call: reminder automático del deadline.
+	if reminderRepo.calls[0].taskID != 7 {
+		t.Errorf("reminder[0].taskID = %d, want 7", reminderRepo.calls[0].taskID)
+	}
+	if reminderRepo.calls[0].remindAt != "2026-05-01T00:00:00Z" {
+		t.Errorf("reminder[0].remindAt = %q, want %q", reminderRepo.calls[0].remindAt, "2026-05-01T00:00:00Z")
+	}
+	// Calls 1 y 2: recordatorios explícitos.
 	wantReminders := []string{"2026-04-24T09:00:00Z", "2026-04-25T09:00:00Z"}
-	for i, c := range reminderRepo.calls {
+	for i, c := range reminderRepo.calls[1:] {
 		if c.taskID != 7 {
-			t.Errorf("reminders.Create[%d].taskID = %d, want 7", i, c.taskID)
+			t.Errorf("reminders.Create[%d].taskID = %d, want 7", i+1, c.taskID)
 		}
 		if c.remindAt != wantReminders[i] {
-			t.Errorf("reminders.Create[%d].remindAt = %q, want %q", i, c.remindAt, wantReminders[i])
+			t.Errorf("reminders.Create[%d].remindAt = %q, want %q", i+1, c.remindAt, wantReminders[i])
 		}
 	}
 }
 
 func TestWriteCreateTask_WithDescription(t *testing.T) {
-	m := newModule(&mockTaskRepo{createID: 10}, &mockReminderRepo{})
+	reminderRepo := &mockReminderRepo{}
+	m := newModule(&mockTaskRepo{createID: 10}, reminderRepo)
 
 	result, err := m.Write(context.Background(), "create_task", map[string]any{
 		"name":        "Preparar presentación",
@@ -119,6 +141,14 @@ func TestWriteCreateTask_WithDescription(t *testing.T) {
 	}
 	if result["id"] != int64(10) {
 		t.Errorf("Write(create_task) id = %v, want 10", result["id"])
+	}
+
+	// Auto reminder para el deadline.
+	if len(reminderRepo.calls) != 1 {
+		t.Fatalf("reminders.Create calls = %d, want 1 (auto deadline reminder)", len(reminderRepo.calls))
+	}
+	if reminderRepo.calls[0].remindAt != "2026-06-01T00:00:00Z" {
+		t.Errorf("reminder remindAt = %q, want %q", reminderRepo.calls[0].remindAt, "2026-06-01T00:00:00Z")
 	}
 }
 

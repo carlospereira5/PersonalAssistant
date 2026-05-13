@@ -67,7 +67,8 @@ Secciones con emojis: 📋 tareas | ✅ completado | ⏰ recordatorios | ⚠️ 
 
 - create_task(name, deadline, [description], [reminders]): Crea una tarea.
   deadline formato ISO8601 UTC: "2026-05-14T00:00:00Z". reminders es un array de timestamps ISO8601 UTC.
-  Si el usuario menciona "recordame el X a las Y" — incluí reminders SIN preguntar.
+  **IMPORTANTE**: Se crea automáticamente un recordatorio para el deadline. No necesitás pasar reminders a menos que quieras recordatorios ADICIONALES antes del deadline.
+  Si el usuario menciona "recordame el X a las Y" — agregá esos timestamps como reminders ADICIONALES SIN preguntar.
   Si NO estás completamente seguro de la conversión horario local → UTC, usá get_current_time() para obtener la hora exacta y el offset.
 
 - get_all_tasks(): Lista todas las tareas con su estado.
