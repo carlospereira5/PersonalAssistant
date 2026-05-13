@@ -1,0 +1,64 @@
+package llm
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/sashabaranov/go-openai"
+)
+
+// mockSession simula el comportamiento de Groq/OpenAI para tests de retry.
+type mockSession struct {
+	attempts int
+}
+
+func (m *mockSession) Send(_ context.Context, _ string) (string, []ToolCall, error) {
+	m.attempts++
+	if m.attempts < 3 {
+		return "", nil, &openai.APIError{
+			HTTPStatusCode: 429,
+			Message:        "Rate limit exceeded (simulado)",
+		}
+	}
+	return "respuesta exitosa", nil, nil
+}
+
+func (m *mockSession) SendToolResults(_ context.Context, _ []ToolResult) (string, []ToolCall, error) {
+	return "", nil, nil
+}
+
+func (m *mockSession) Stream(_ context.Context, _ string) (<-chan StreamEvent, error) {
+	return nil, nil
+}
+
+func (m *mockSession) StreamToolResults(_ context.Context, _ []ToolResult) (<-chan StreamEvent, error) {
+	return nil, nil
+}
+
+func (m *mockSession) InjectAssistantMessage(_ string) {}
+
+func TestRetryDecorator_SuccessOnThirdAttempt(t *testing.T) {
+	mock := &mockSession{}
+	wrapped := WrapSession(mock, true)
+
+	start := time.Now()
+	text, _, err := wrapped.Send(context.Background(), "test message")
+	elapsed := time.Since(start)
+
+	if err != nil {
+		t.Fatalf("se esperaba éxito al final, pero falló: %v", err)
+	}
+	if text != "respuesta exitosa" {
+		t.Fatalf("respuesta inesperada: %s", text)
+	}
+	if mock.attempts != 3 {
+		t.Fatalf("se esperaban 3 intentos, pero se registraron %d", mock.attempts)
+	}
+	// backoff: 4s (intento 1→2) + 8s (intento 2→3) = ~12s total
+	// Groq 429 puede pedir hasta ~7s de espera — backoff de 4s cubre el primer retry.
+	if elapsed < 4*time.Second {
+		t.Fatalf("el backoff no está pausando correctamente. Tiempo: %v", elapsed)
+	}
+	t.Logf("completado en %v con %d intentos", elapsed, mock.attempts)
+}
