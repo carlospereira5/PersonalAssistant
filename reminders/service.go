@@ -12,7 +12,7 @@ import (
 	"github.com/carlospereira5/PersonalAssistant/internal/domain"
 )
 
-const tickInterval = 30 * time.Second
+const tickInterval = 15 * time.Second
 
 // Service revisa periódicamente los recordatorios pendientes y los envía
 // por el Messenger configurado al JID del administrador.
