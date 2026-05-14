@@ -9,7 +9,6 @@
 //	export OPENAI_API_KEY=sk-...
 //	export OPENAI_BASE_URL=https://openrouter.ai/api/v1
 //	export OPENAI_MODEL=google/gemini-2.5-flash
-//	export GEMINI_API_KEY=AIza...   (opcional — activa Google Search Grounding nativo)
 //	export ALLOWED_NUMBERS=56912345678
 //	go run ./cmd/assistant
 package main
@@ -23,7 +22,6 @@ import (
 
 	charm "github.com/charmbracelet/log"
 	"github.com/sashabaranov/go-openai"
-	"google.golang.org/genai"
 
 	"github.com/carlospereira5/PersonalAssistant/agent"
 	agentllm "github.com/carlospereira5/PersonalAssistant/agent/llm"
@@ -54,7 +52,6 @@ func main() {
 	openAIKey := getEnv("OPENAI_API_KEY", "")
 	openAIBaseURL := getEnv("OPENAI_BASE_URL", "")
 	openAIModel := getEnv("OPENAI_MODEL", "gpt-4o-mini")
-	geminiAPIKey := getEnv("GEMINI_API_KEY", "")
 	dbPath := getEnv("DATABASE_PATH", "./assistant.db")
 	allowedRaw := getEnv("ALLOWED_NUMBERS", "")
 	whatsAppDBPath := getEnv("WHATSAPP_DB_PATH", "./whatsapp.db")
@@ -63,37 +60,17 @@ func main() {
 		logger.Fatal("OPENAI_API_KEY es requerida — configurala en Infisical")
 	}
 
-	// ── LLM ───────────────────────────────────────────────────────────────────
+	// ── LLM: TODO via OpenRouter ─────────────────────────────────────────────
+	// Usamos OpenRouter para todo. El modelo google/gemini-2.5-flash se sirve
+	// via OpenRouter, sin llamar a la API nativa de Google.
+	// Esto evita el cuoteo del free tier de Gemini (20 requests/día).
 	oc := openai.DefaultConfig(openAIKey)
 	if openAIBaseURL != "" {
 		oc.BaseURL = openAIBaseURL
 	}
 	llmClient := openai.NewClientWithConfig(oc)
-	openAILLM := agentllm.NewOpenAILLM(llmClient, openAIModel, openAIModel, nil)
-
-	// Limpiar prefijo de modelo para APIs nativas (Gemini espera "gemini-2.5-flash")
-	cleanModel := strings.TrimPrefix(openAIModel, "google/")
-	cleanModel = strings.TrimPrefix(cleanModel, "models/")
-	cleanModel = strings.TrimPrefix(cleanModel, "gemini/")
-
-	// Si GEMINI_API_KEY está configurada, usamos Gemini nativo con Google Search
-	// Grounding. El LLM OpenAI se mantiene como fallback para transcripción/visión.
-	var llm agentllm.LLM
-	if geminiAPIKey != "" {
-		geminiClient, err := genai.NewClient(context.Background(), &genai.ClientConfig{
-			APIKey:  geminiAPIKey,
-			Backend: genai.BackendGeminiAPI,
-		})
-		if err != nil {
-			logger.Fatal("Error creando cliente Gemini", "err", err)
-		}
-		llm = agentllm.NewGeminiLLM(geminiClient, cleanModel, openAILLM)
-		logger.Info("LLM: Gemini nativo con Google Search Grounding",
-			"model", cleanModel)
-	} else {
-		llm = openAILLM
-		logger.Info("LLM: OpenAI-compatible", "model", openAIModel)
-	}
+	llm := agentllm.NewOpenAILLM(llmClient, openAIModel, openAIModel, nil)
+	logger.Info("LLM: OpenRouter", "model", openAIModel)
 
 	// ── Base de datos ─────────────────────────────────────────────────────────
 	sqlite, err := db.NewDB(dbPath, logger.WithPrefix("DB"))
@@ -114,7 +91,7 @@ func main() {
 	// ── Módulos ───────────────────────────────────────────────────────────────
 	tasksModule := tasks.New()
 
-	searchModule := search.New(geminiAPIKey, cleanModel)
+	searchModule := search.New()
 
 	schedulerModule := scheduler.New()
 
@@ -122,20 +99,8 @@ func main() {
 
 	modules := []agent.Module{tasksModule, searchModule, schedulerModule, memoryModule}
 
-	// ── Background LLM para procesos que no necesitan Google Search ──────────
-	// Si el LLM principal es Gemini (con Google Search Grounding), usamos
-	// OpenRouter para background (scheduler, extractores, etc.) para no
-	// consumir la cuota gratuita de Gemini (20 requests/día en free tier).
-	var bgLLM agentllm.LLM
-	if geminiAPIKey != "" {
-		bgLLM = openAILLM
-	} else {
-		bgLLM = llm // mismo LLM si no hay Gemini
-	}
-
 	// ── Aria (orquestador) ────────────────────────────────────────────────────
 	aria := agent.New(llm, sqlite.Db, logger, modules,
-		agent.WithBackgroundLLM(bgLLM),
 		agent.WithRepos(agent.Repos{
 			Config:    configRepo,
 			Tasks:     taskRepo,

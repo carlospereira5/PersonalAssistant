@@ -10,27 +10,22 @@ import (
 	"github.com/carlospereira5/PersonalAssistant/agent"
 )
 
-// Module implementa Gen2 DataReader/DataWriter para búsqueda web.
-// web_search usa Gemini Search Grounding vía REST API.
-// fetch_url usa HTTP directo.
+// Module implementa Gen2 DataReader para búsqueda web.
+// web_search usa DuckDuckGo (gratuito, sin API key).
+// fetch_url usa HTTP directo para leer páginas web.
 type Module struct {
-	client   *http.Client
-	searcher *SearchClient
-	logger   *charm.Logger
+	client *http.Client
+	logger *charm.Logger
 }
 
-// New crea un módulo de búsqueda. Si apiKey y model son vacíos,
-// web_search no estará disponible (fetch_url sí).
-func New(apiKey, model string) *Module {
-	m := &Module{
+// New crea un módulo de búsqueda web.
+// web_search y fetch_url están siempre disponibles.
+func New() *Module {
+	return &Module{
 		client: &http.Client{
 			Timeout: 15 * time.Second,
 		},
 	}
-	if apiKey != "" && model != "" {
-		m.searcher = NewSearchClient(apiKey, model)
-	}
-	return m
 }
 
 func (m *Module) Name() string     { return "search" }

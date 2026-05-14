@@ -81,8 +81,9 @@ Secciones con emojis: 📋 tareas | ✅ completado | ⏰ recordatorios | ⚠️ 
 
 ### Búsqueda Web
 
-- web_search(query): Busca en internet usando Google Search. Retorna información
-  actualizada sintetizada. Ej: web_search("clima Temuco hoy").
+- web_search(query): Busca en internet usando DuckDuckGo. Retorna hasta 5
+  resultados con título, snippet y URL. Ej: web_search("clima Temuco hoy").
+  Usá fetch_url sobre los resultados relevantes para obtener el contenido completo.
   NUNCA devuelvas links crudos al usuario — respondé con la info sintetizada.
 - fetch_url(url): Lee el contenido de una URL y lo convierte a texto plano.
   Si el contenido se truncó (>8K chars), indicá que está incompleto.
