@@ -6,15 +6,22 @@ type ToolDef struct {
 	Description string
 	Parameters  []ParamDef
 	Required    []string
+
+	// ServerTool, si no está vacío, indica que este tool es un server tool
+	// (ej: "openrouter:web_search"). En ese caso, Name, Description, Parameters
+	// y Required se ignoran, y el tool se envía con el type especificado.
+	// Server tools son ejecutados por el proveedor (OpenRouter) server-side,
+	// no por nuestro código.
+	ServerTool string
 }
 
 // ParamDef define un parámetro de una herramienta.
 type ParamDef struct {
 	Name        string
-	Type        string   // "string", "integer", "number", "boolean", "array"
+	Type        string // "string", "integer", "number", "boolean", "array"
 	Description string
 	Enum        []string
-	Items       string   // tipo de los elementos cuando Type=="array", e.g. "string"
+	Items       string // tipo de los elementos cuando Type=="array", e.g. "string"
 }
 
 // ToolCall representa una invocación de herramienta pedida por el LLM.

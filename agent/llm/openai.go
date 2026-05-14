@@ -81,21 +81,19 @@ func (o *OpenAILLM) AnalyzeImage(ctx context.Context, imageData []byte, mimeType
 func (o *OpenAILLM) NewSession(_ context.Context, systemPrompt string, tools []ToolDef) (Session, error) {
 	oTools := make([]openai.Tool, len(tools))
 	for i, t := range tools {
-		props := make(map[string]any)
+		// Server tools (ej: openrouter:web_search) — el proveedor las maneja server-side.
+		if t.ServerTool != "" {
+			oTools[i] = openai.Tool{
+				Type: openai.ToolType(t.ServerTool),
+			}
+			continue
+		}
+
+		props := make(map[string]any, len(t.Parameters))
 		for _, p := range t.Parameters {
 			var prop map[string]any
-			if p.Type == "array" {
-				// Para arrays Groq valida el tipo estrictamente: si el LLM genera
-				// un array real y el schema dice "string", devuelve 400.
-				itemType := p.Items
-				if itemType == "" {
-					itemType = "string"
-				}
-				prop = map[string]any{
-					"type":        "array",
-					"description": p.Description,
-					"items":       map[string]any{"type": itemType},
-				}
+			if p.Items != "" {
+				prop = map[string]any{"type": "array", "items": map[string]any{"type": p.Items}, "description": p.Description}
 			} else {
 				prop = map[string]any{"type": p.Type, "description": p.Description}
 				if len(p.Enum) > 0 {
@@ -251,7 +249,7 @@ func (s *openAISession) stream(ctx context.Context) <-chan StreamEvent {
 
 		var fullContent strings.Builder
 		var assistantToolCalls []openai.ToolCall
-		
+
 		for {
 			resp, err := stream.Recv()
 			if err != nil {
@@ -267,7 +265,7 @@ func (s *openAISession) stream(ctx context.Context) <-chan StreamEvent {
 			}
 
 			delta := resp.Choices[0].Delta
-			
+
 			// Acumular contenido de texto
 			if delta.Content != "" {
 				fullContent.WriteString(delta.Content)
@@ -301,7 +299,7 @@ func (s *openAISession) stream(ctx context.Context) <-chan StreamEvent {
 			Role:    openai.ChatMessageRoleAssistant,
 			Content: fullContent.String(),
 		}
-		
+
 		var toolCalls []ToolCall
 		if len(assistantToolCalls) > 0 {
 			msg.ToolCalls = assistantToolCalls
@@ -317,7 +315,7 @@ func (s *openAISession) stream(ctx context.Context) <-chan StreamEvent {
 				toolCalls[i] = ToolCall{Name: tc.Function.Name, Args: args}
 			}
 		}
-		
+
 		s.messages = append(s.messages, msg)
 		ch <- StreamEvent{ToolCalls: toolCalls, Done: true}
 	}()
