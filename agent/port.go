@@ -60,10 +60,12 @@ type PortDeps struct {
 	BackgroundLLM agentllm.LLM
 
 	// Repos pre-construidos para uso directo en módulos.
-	Config    domain.ConfigRepository
-	Tasks     domain.TaskRepository
-	Reminders domain.ReminderRepository
-	Scheduler domain.SchedulerRepository
+	Config       domain.ConfigRepository
+	Tasks        domain.TaskRepository
+	Reminders    domain.ReminderRepository
+	Scheduler    domain.SchedulerRepository
+	Debts        domain.DebtRepository
+	DebtPayments domain.DebtPaymentRepository
 }
 
 // PortDB — acceso controlado a la base de datos.

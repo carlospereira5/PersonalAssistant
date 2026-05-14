@@ -59,6 +59,22 @@ func (s *SQLite) MigrateContext(ctx context.Context) error {
 			INSERT INTO memory_fts(memory_fts, rowid, key, value) VALUES('delete', old.rowid, old.key, old.value);
 			INSERT INTO memory_fts(rowid, key, value) VALUES (new.rowid, new.key, new.value);
 		END;`,
+		// ── Deudas ─────────────────────────────────────────────────────────────
+		`CREATE TABLE IF NOT EXISTS debts (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL,
+			total_amount INTEGER NOT NULL,
+			state TEXT NOT NULL DEFAULT 'PENDING' CHECK(state IN ('PENDING','PARTIAL','PAID')),
+			description TEXT DEFAULT ''
+		) STRICT;`,
+		`CREATE TABLE IF NOT EXISTS debts_payments (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			debt_id INTEGER NOT NULL REFERENCES debts(id) ON DELETE CASCADE,
+			amount_int INTEGER NOT NULL,
+			notes TEXT DEFAULT '',
+			paid_at TEXT NOT NULL,
+			created_at TEXT NOT NULL DEFAULT (datetime('now'))
+		) STRICT;`,
 	}
 
 	for _, query := range queries {

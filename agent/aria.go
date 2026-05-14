@@ -35,10 +35,12 @@ type Aria struct {
 
 // Repos agrupa los repositorios de dominio disponibles para los módulos.
 type Repos struct {
-	Config    domain.ConfigRepository
-	Tasks     domain.TaskRepository
-	Reminders domain.ReminderRepository
-	Scheduler domain.SchedulerRepository
+	Config       domain.ConfigRepository
+	Tasks        domain.TaskRepository
+	Reminders    domain.ReminderRepository
+	Scheduler    domain.SchedulerRepository
+	Debts        domain.DebtRepository
+	DebtPayments domain.DebtPaymentRepository
 }
 
 // New crea una Aria con arquitectura de módulos.

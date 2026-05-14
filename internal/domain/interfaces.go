@@ -1,6 +1,10 @@
 package domain
 
-import "context"
+import (
+	"context"
+
+	"github.com/shopspring/decimal"
+)
 
 // TaskRepository defines persistence operations for tasks.
 type TaskRepository interface {
@@ -22,6 +26,27 @@ type ReminderRepository interface {
 type ConfigRepository interface {
 	Get(ctx context.Context, key string) (string, error)
 	Set(ctx context.Context, key, value string) error
+}
+
+// DebtRepository defines persistence operations for debts.
+// Single-user: no GetByUser, Create uses name string (debtor name).
+type DebtRepository interface {
+	Create(ctx context.Context, name string, totalAmount int64, description string) (int64, error)
+	GetByID(ctx context.Context, id int64) (Debt, error)
+	GetAll(ctx context.Context) ([]Debt, error)
+	Update(ctx context.Context, id int64, name string, totalAmount int64, description string) error
+	UpdateState(ctx context.Context, id int64, state string) error
+	Delete(ctx context.Context, id int64) error
+}
+
+// DebtPaymentRepository defines persistence operations for debt payments.
+type DebtPaymentRepository interface {
+	Create(ctx context.Context, debtID int64, amount int64, notes string, paidAt string) (int64, error)
+	GetByID(ctx context.Context, id int64) (DebtPayment, error)
+	GetByDebt(ctx context.Context, debtID int64) ([]DebtPayment, error)
+	GetTotalPaid(ctx context.Context, debtID int64) (decimal.Decimal, error)
+	Update(ctx context.Context, id int64, amount int64, notes string, paidAt string) error
+	Delete(ctx context.Context, id int64) error
 }
 
 // SchedulerRepository defines persistence operations for scheduled routines.
