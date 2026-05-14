@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"os"
 	"os/signal"
@@ -38,18 +39,34 @@ import (
 	"github.com/carlospereira5/PersonalAssistant/whatsapp"
 )
 
-// init reemplaza el resolver DNS por defecto para usar 8.8.8.8 directamente.
-// En Android+Tailscale, el proxy DNS local (127.0.0.1:53) de Tailscale se cae
-// cuando el dispositivo entra en suspensión. Con este override, toda resolución
-// DNS (whatsmeow, OpenRouter, etc.) va directo a 8.8.8.8 sin depender de Tailscale.
+// DNS servers para el resolver override.
+// Google DNS primario, Cloudflare como fallback.
+var dnsServers = []string{"8.8.8.8:53", "1.1.1.1:53"}
+
+// init reemplaza el resolver DNS por defecto para evitar depender del proxy DNS
+// de Tailscale (127.0.0.1:53). En Android+Tailscale, ese proxy se cae cuando el
+// dispositivo entra en deep sleep, dejando a whatsmeow sin poder reconectar.
+//
+// Con PreferGo:true + Dial directo, toda resolución DNS en la aplicación
+// (whatsmeow, OpenRouter, Groq, etc.) va a los servidores definidos arriba sin
+// pasar por el resolver del sistema (/etc/resolv.conf o getaddrinfo).
+//
+// RIESGO: esto IGNORA servidores DNS locales. No puede resolver dominios de la
+// tailnet (MagicDNS) ni dominios .local. Es intencional — PersonalAssistant solo
+// necesita resolver dominios públicos.
 func init() {
 	net.DefaultResolver = &net.Resolver{
 		PreferGo: true,
-		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
-			// Ignoramos address (que vendría de /etc/resolv.conf o del default)
-			// y vamos directo a 8.8.8.8:53 con timeout de 5 segundos.
+		Dial: func(ctx context.Context, _, _ string) (net.Conn, error) {
 			d := net.Dialer{Timeout: 5 * time.Second}
-			return d.DialContext(ctx, "udp", "8.8.8.8:53")
+			// Intenta cada DNS server en orden hasta que uno responda.
+			for _, srv := range dnsServers {
+				conn, err := d.DialContext(ctx, "udp", srv)
+				if err == nil {
+					return conn, nil
+				}
+			}
+			return nil, fmt.Errorf("dns: all servers unreachable (%v)", dnsServers)
 		},
 	}
 }
