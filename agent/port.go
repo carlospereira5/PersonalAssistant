@@ -1,11 +1,11 @@
 // Package agent — port.go define los contratos de módulos para el agente.
 //
-// Hay dos generaciones de interfaz:
+// Las capacidades se modelan con interfaces segregadas (Gen2):
+//   - Module:    interfaz base (Name, Schema, Init)
+//   - DataReader: módulos que proveen datos (read-only tools + PromptSection)
+//   - DataWriter: módulos que mutan estado (write tools)
 //
-//  1. DataPort (gen1): interfaz monolítica con Tools()/Handle()/PromptSection().
-//  2. Module + DataReader + DataWriter (gen2): interfaces segregadas.
-//
-// El agente acepta ambas generaciones vía type assertions en provisionModules().
+// Un mismo tipo puede implementar DataReader, DataWriter, ambos, o ninguno.
 package agent
 
 import (
@@ -18,18 +18,7 @@ import (
 	"github.com/carlospereira5/PersonalAssistant/internal/domain"
 )
 
-// ── Generación 1: DataPort ────────────────────────────────────────────────────
-
-type DataPort interface {
-	Name() string
-	Schema() []string
-	Init(deps PortDeps) error
-	Tools() []agentllm.ToolDef
-	Handle(ctx context.Context, tool string, args map[string]any) (map[string]any, error)
-	PromptSection(ctx context.Context, userID string) string
-}
-
-// ── Generación 2: interfaces segregadas ──────────────────────────────────────
+// ── Interfaces segregadas (Gen2) ─────────────────────────────────────────────
 
 type Module interface {
 	Name() string

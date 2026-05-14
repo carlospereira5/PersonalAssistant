@@ -7,7 +7,7 @@ import (
 )
 
 // provisionModules ejecuta el lifecycle de cada módulo registrado.
-// Acepta Gen1 (DataPort) y Gen2 (DataReader/DataWriter) vía type assertions.
+// Soporta Gen2 via type assertions: DataReader, DataWriter, backgroundModule.
 func (a *Aria) provisionModules() {
 	deps := a.buildDeps()
 
@@ -29,31 +29,14 @@ func (a *Aria) provisionModules() {
 
 		var toolCount int
 
-		isReader := false
 		if r, ok := m.(DataReader); ok {
 			a.registerReadTools(r)
 			toolCount += len(r.ReadTools())
-			isReader = true
 		}
 
-		isWriter := false
 		if w, ok := m.(DataWriter); ok {
 			a.registerDataWriter(w)
 			toolCount += len(w.WriteTools())
-			isWriter = true
-		}
-
-		if !isReader && !isWriter {
-			if p, ok := m.(DataPort); ok {
-				mod := p
-				for _, tool := range p.Tools() {
-					toolName := tool.Name
-					a.registry.Register(tool, func(ctx context.Context, args map[string]any) (map[string]any, error) {
-						return mod.Handle(ctx, toolName, args)
-					})
-				}
-				toolCount += len(p.Tools())
-			}
 		}
 
 		modLogger.Info("Módulo registrado", "tools", toolCount)

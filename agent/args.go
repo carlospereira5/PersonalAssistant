@@ -1,5 +1,4 @@
 // Package agent — args.go exporta helpers para extraer argumentos de tool calls.
-// Usado tanto por el agente core como por los DataPorts.
 package agent
 
 import (

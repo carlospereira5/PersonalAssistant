@@ -67,7 +67,7 @@ func (a *Aria) getSession(ctx context.Context, userID string) (agentllm.Session,
 
 // buildPrompt construye el system prompt combinando:
 //  1. Core del agente (persona, fecha, formato)
-//  2. PromptSection de cada módulo DataReader (Gen2) o DataPort (Gen1)
+//  2. PromptSection de cada módulo DataReader
 func (a *Aria) buildPrompt(ctx context.Context, userID string) string {
 	var b strings.Builder
 	b.Grow(4000)
@@ -75,15 +75,11 @@ func (a *Aria) buildPrompt(ctx context.Context, userID string) string {
 	b.WriteString(buildCorePrompt())
 
 	for _, m := range a.modules {
-		var section string
 		if r, ok := m.(DataReader); ok {
-			section = r.PromptSection(ctx, userID)
-		} else if p, ok := m.(DataPort); ok {
-			section = p.PromptSection(ctx, userID)
-		}
-		if section != "" {
-			b.WriteString(section)
-			b.WriteString("\n")
+			if section := r.PromptSection(ctx, userID); section != "" {
+				b.WriteString(section)
+				b.WriteString("\n")
+			}
 		}
 	}
 
