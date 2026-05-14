@@ -9,6 +9,7 @@
 //	export OPENAI_API_KEY=sk-...
 //	export OPENAI_BASE_URL=https://openrouter.ai/api/v1
 //	export OPENAI_MODEL=google/gemini-2.5-flash
+//	export GROQ_API_KEY=gsk_...           (opcional — para transcripción de audio)
 //	export ALLOWED_NUMBERS=56912345678
 //	go run ./cmd/assistant
 package main
@@ -52,6 +53,7 @@ func main() {
 	openAIKey := getEnv("OPENAI_API_KEY", "")
 	openAIBaseURL := getEnv("OPENAI_BASE_URL", "")
 	openAIModel := getEnv("OPENAI_MODEL", "gpt-4o-mini")
+	groqAPIKey := getEnv("GROQ_API_KEY", "")
 	dbPath := getEnv("DATABASE_PATH", "./assistant.db")
 	allowedRaw := getEnv("ALLOWED_NUMBERS", "")
 	whatsAppDBPath := getEnv("WHATSAPP_DB_PATH", "./whatsapp.db")
@@ -69,7 +71,18 @@ func main() {
 		oc.BaseURL = openAIBaseURL
 	}
 	llmClient := openai.NewClientWithConfig(oc)
-	llm := agentllm.NewOpenAILLM(llmClient, openAIModel, openAIModel, nil)
+
+	// Whisper (transcripción de audio) via Groq — gratis, sin cuota relevante.
+	// OpenRouter no soporta el endpoint de audio, por eso usamos Groq.
+	var whisperClient *openai.Client
+	if groqAPIKey != "" {
+		groqCfg := openai.DefaultConfig(groqAPIKey)
+		groqCfg.BaseURL = "https://api.groq.com/openai/v1"
+		whisperClient = openai.NewClientWithConfig(groqCfg)
+		logger.Info("Whisper: Groq (transcripción de audio)")
+	}
+
+	llm := agentllm.NewOpenAILLM(llmClient, openAIModel, openAIModel, whisperClient)
 	logger.Info("LLM: OpenRouter", "model", openAIModel)
 
 	// ── Base de datos ─────────────────────────────────────────────────────────
