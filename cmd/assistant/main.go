@@ -28,6 +28,7 @@ import (
 	"github.com/carlospereira5/PersonalAssistant/agent"
 	agentllm "github.com/carlospereira5/PersonalAssistant/agent/llm"
 	"github.com/carlospereira5/PersonalAssistant/internal/db"
+	"github.com/carlospereira5/PersonalAssistant/internal/modules/memory"
 	"github.com/carlospereira5/PersonalAssistant/internal/modules/scheduler"
 	"github.com/carlospereira5/PersonalAssistant/internal/modules/search"
 	"github.com/carlospereira5/PersonalAssistant/internal/modules/tasks"
@@ -117,7 +118,9 @@ func main() {
 
 	schedulerModule := scheduler.New()
 
-	modules := []agent.Module{tasksModule, searchModule, schedulerModule}
+	memoryModule := memory.New()
+
+	modules := []agent.Module{tasksModule, searchModule, schedulerModule, memoryModule}
 
 	// ── Aria (orquestador) ────────────────────────────────────────────────────
 	aria := agent.New(llm, sqlite.Db, logger, modules,

@@ -36,6 +36,29 @@ func (s *SQLite) MigrateContext(ctx context.Context) error {
 			last_error  TEXT DEFAULT '',
 			created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 		) STRICT;`,
+		// ── Memoria semántica (FTS5) ─────────────────────────────────────────
+		`CREATE TABLE IF NOT EXISTS memory_facts (
+			rowid      INTEGER PRIMARY KEY AUTOINCREMENT,
+			key        TEXT NOT NULL UNIQUE,
+			value      TEXT NOT NULL,
+			created_at TEXT NOT NULL DEFAULT (datetime('now')),
+			expires_at TEXT
+		) STRICT;`,
+		`CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
+			key, value,
+			content='memory_facts',
+			content_rowid='rowid'
+		);`,
+		`CREATE TRIGGER IF NOT EXISTS memory_facts_ai AFTER INSERT ON memory_facts BEGIN
+			INSERT INTO memory_fts(rowid, key, value) VALUES (new.rowid, new.key, new.value);
+		END;`,
+		`CREATE TRIGGER IF NOT EXISTS memory_facts_ad AFTER DELETE ON memory_facts BEGIN
+			INSERT INTO memory_fts(memory_fts, rowid, key, value) VALUES('delete', old.rowid, old.key, old.value);
+		END;`,
+		`CREATE TRIGGER IF NOT EXISTS memory_facts_au AFTER UPDATE ON memory_facts BEGIN
+			INSERT INTO memory_fts(memory_fts, rowid, key, value) VALUES('delete', old.rowid, old.key, old.value);
+			INSERT INTO memory_fts(rowid, key, value) VALUES (new.rowid, new.key, new.value);
+		END;`,
 	}
 
 	for _, query := range queries {
