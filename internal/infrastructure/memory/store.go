@@ -125,6 +125,44 @@ func (s *FactStore) SearchFacts(ctx context.Context, query string) ([]Fact, erro
 	return facts, rows.Err()
 }
 
+// GetAllFacts retorna todos los facts activos (no expirados).
+// Útil para inyectar contexto al LLM en la construcción del prompt.
+func (s *FactStore) GetAllFacts(ctx context.Context) ([]Fact, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT key, value, created_at, expires_at
+		FROM memory_facts
+		WHERE expires_at IS NULL OR expires_at > datetime('now')
+		ORDER BY created_at ASC
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("get_all_facts: %w", err)
+	}
+	defer rows.Close()
+
+	var facts []Fact
+	for rows.Next() {
+		var f Fact
+		var createdAt, expiresAt sql.NullString
+		if err := rows.Scan(&f.Key, &f.Value, &createdAt, &expiresAt); err != nil {
+			return nil, fmt.Errorf("get_all_facts scan: %w", err)
+		}
+		if createdAt.Valid {
+			f.CreatedAt, _ = time.Parse(time.RFC3339, createdAt.String)
+		}
+		if expiresAt.Valid {
+			t, err := time.Parse(time.RFC3339, expiresAt.String)
+			if err == nil {
+				f.ExpiresAt = &t
+			}
+		}
+		facts = append(facts, f)
+	}
+	if facts == nil {
+		facts = []Fact{}
+	}
+	return facts, rows.Err()
+}
+
 // DeleteFact elimina un fact por su key.
 func (s *FactStore) DeleteFact(ctx context.Context, key string) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM memory_facts WHERE key = ?`, key)
