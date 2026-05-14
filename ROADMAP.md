@@ -59,18 +59,36 @@ Rutinas programadas que ejecutan acciones automáticamente usando expresiones cr
 
 ## 🔮 Fase 3 — Prioridad Media (P1)
 
-### 3. Memoria Persistente entre Sesiones
+### 3. ✅ Memoria Persistente entre Sesiones
 
 Que el agente recuerde conversaciones pasadas, preferencias del usuario, y contexto entre sesiones.
 
-- [ ] **Extracción automática de facts** — El agente extrae hechos relevantes de cada conversación (preferencias, datos personales, decisiones)
-- [ ] **SQLite FTS5 para búsqueda semántica** — Búsqueda full-text sobre historial de conversaciones
-- [ ] **Tool `save_fact(key, value)` / `get_fact(key)`** — Memoria explícita manipulable por el LLM
-- [ ] **Inyección automática en system prompt** — Facts relevantes se inyectan en el prompt según el contexto de la conversación
+- [x] **SQLite FTS5 para búsqueda semántica** — Tabla `memory_facts` + `memory_fts` virtual con triggers de sync automáticos
+- [x] **Tool `save_fact(key, value, ttl?)` / `get_fact(key)` / `search_memory(query)`** — CRUD completo de facts vía tools del LLM
+- [x] **Inyección automática en system prompt** — `PromptSection()` inyecta todos los facts activos directamente en el prompt al iniciar sesión. El LLM los recibe sin tener que llamar herramientas.
+- [ ] **Extracción automática de facts** — Hook `OnSessionEnd` analiza el transcript y extrae facts automáticamente. Pendiente de implementar.
 
-**Archivos:** `internal/memory/`, `internal/db/memory_repo.go`
+> ⚠️ **Fix aplicado (14/05/2026)**: Originalmente `PromptSection()` solo describía las tools, no inyectaba los valores. Corrección: ahora llama `GetAllFacts()` y los incluye como contexto directo con instrucción "DEBES usarla en tus respuestas".
 
-### 4. Proactividad
+**Archivos:** `internal/modules/memory/{module,read,write,tools}.go`, `internal/infrastructure/memory/store.go`
+
+### 4. ✅ Deudas (Debts) — Integrado desde fito/
+
+Módulo completo de gestión de deudas, portado desde el proyecto `fito/` y simplificado para single-user (sin UserID, nombre del deudor como identificador).
+
+- [x] **CRUD completo de deudas** — 6 tools: `create_debt`, `get_all_debts`, `get_debt_by_id`, `update_debt`, `update_debt_state`, `delete_debt`
+- [x] **CRUD completo de pagos** — 5 tools: `add_debt_payment`, `get_debt_payments`, `update_debt_payment`, `delete_debt_payment`
+- [x] **Auto-recalculo de estado** — Al agregar/eliminar pagos, el estado se recalcula automáticamente (PENDING → PARTIAL → PAID)
+- [x] **Validaciones** — Montos negativos, sobrepagos, estados inválidos
+- [x] **Precisión monetaria** — `shopspring/decimal` en dominio, `int64` cents en DB, formateo a string para el LLM
+- [x] **PromptSection con deudas pendientes** — LEFT JOIN con pagos para mostrar total adeudado vs pagado
+
+> **Decisión arquitectónica**: Single-user. No existe tabla `users`. El deudor se identifica por su nombre en el campo `Name`. La tool `get_debts_by_user` se eliminó por ser redundante.
+
+**Archivos:** `internal/modules/debts/{module,tools,read,write,marshal}.go`, `internal/db/debt_repo.go`, `internal/db/debt_payment_repo.go`
+**Dependencia nueva:** `github.com/shopspring/decimal`
+
+### 5. Proactividad
 
 Que el asistente hable sin que le pregunten.
 
@@ -81,7 +99,7 @@ Que el asistente hable sin que le pregunten.
 
 **Archivos:** `internal/proactive/`, integración con `reminders/service.go`
 
-### 5. Calendario (Google Calendar)
+### 6. Calendario (Google Calendar)
 
 - [ ] **OAuth2 con Google Calendar** — Leer eventos, crear eventos
 - [ ] **Tool `calendar_list(date)`** — "Qué tengo mañana"
@@ -158,6 +176,85 @@ Que el agente pueda extender sus capacidades en caliente.
 | **SQLite, sin servidor** | Cero infraestructura, single binary |
 | **whatsmeow, no Business API** | Sin costos ni aprobaciones de Meta |
 | **Un sóllo binario** | `go build` produce un único binario estático |
+
+---
+
+---
+
+## 🛠️ Infraestructura y Operaciones
+
+### Deploy en Termux (Android)
+
+El asistente corre en un teléfono Android vía Termux, accesible por SSH (puerto 8022) a través de Tailscale.
+
+| Componente | Detalle |
+|---|---|
+| **Dispositivo** | Samsung Galaxy A36 5G — `galaxy-a36-5g` (Tailscale: `100.68.21.101`) |
+| **SSH** | Puerto `8022` (Termux no puede usar <1024 sin root) |
+| **Runtime** | `tmux` session + `bash ~/start-assistant.sh` |
+| **Logs** | `~/pa.log` (stdout + stderr via `tee`) |
+| **Binario** | `~/assistant` (cross-compiled `linux/arm64`) |
+| **DB** | `~/PersonalAssistant/assistant.db` (SQLite WAL) |
+
+### Startup Script (`~/start-assistant.sh`)
+
+```bash
+#!/data/data/com.termux/files/usr/bin/bash
+cd ~/PersonalAssistant
+set -a
+source .env
+set +a
+export GODEBUG=netdns=go
+exec ~/assistant 2>&1 | tee ~/pa.log
+```
+
+### DNS override (aplicado en código)
+
+**Problema**: Tailscale reemplaza el DNS del sistema por su proxy local (`127.0.0.1:53`). Cuando el dispositivo Android entra en deep sleep, Tailscale se suspende y el proxy DNS muere. Esto impide que whatsmeow reconecte el WebSocket de WhatsApp.
+
+**Solución**: Override global de `net.DefaultResolver` en `cmd/assistant/main.go`:
+
+```go
+var dnsServers = []string{"8.8.8.8:53", "1.1.1.1:53"}
+
+func init() {
+    net.DefaultResolver = &net.Resolver{
+        PreferGo: true,
+        Dial: func(ctx context.Context, _, _ string) (net.Conn, error) {
+            d := net.Dialer{Timeout: 5 * time.Second}
+            for _, srv := range dnsServers {
+                conn, err := d.DialContext(ctx, "udp", srv)
+                if err == nil {
+                    return conn, nil
+                }
+            }
+            return nil, fmt.Errorf("dns: all servers unreachable (%v)", dnsServers)
+        },
+    }
+}
+```
+
+Esto hace que TODA resolución DNS de la aplicación vaya directo a `8.8.8.8:53` (con fallback a `1.1.1.1:53`) sin pasar por el resolver del sistema ni por Tailscale.
+
+> ⚠️ **Limitación conocida**: Este override no puede resolver dominios de la tailnet (MagicDNS `*.ts.net`) ni dominios `.local`. Es intencional — PersonalAssistant solo necesita dominios públicos. Si en el futuro se requiere, habrá que agregar lógica condicional.
+
+### Arquitectura de Módulos (Gen2)
+
+Cada capacidad del agente es un módulo autocontenido que implementa las interfaces del `agent`:
+
+```
+Module        → Name(), Schema(), Init(PortDeps)
+DataReader    → Module + PromptSection() + ReadTools() + Read()
+DataWriter    → Module + WriteTools() + Write()
+```
+
+| Módulo | Tools | Reader | Writer | Background |
+|---|---|---|---|---|
+| `tasks` | 5 | ✅ | ✅ | ❌ |
+| `search` | 2 | ✅ | ❌ | ❌ |
+| `scheduler` | 6 | ✅ | ✅ | ✅ (ticker 60s) |
+| `memory` | 3 | ✅ | ✅ | ❌ |
+| `debts` | 11 | ✅ | ✅ | ❌ |
 
 ---
 
