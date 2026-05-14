@@ -42,6 +42,10 @@ func (m *Module) Init(deps agent.PortDeps) error {
 	return nil
 }
 
+// SetMessenger permite que Aria inyecte el Messenger post-construcción.
+// El scheduler necesita el messenger para enviar resultados de rutinas.
+func (m *Module) SetMessenger(ms agent.Messenger) { m.messenger = ms }
+
 func (m *Module) PromptSection(ctx context.Context, _ string) string {
 	routines, err := m.repo.GetAll(ctx)
 	if err != nil {
