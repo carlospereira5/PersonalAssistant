@@ -122,8 +122,20 @@ func main() {
 
 	modules := []agent.Module{tasksModule, searchModule, schedulerModule, memoryModule}
 
+	// ── Background LLM para procesos que no necesitan Google Search ──────────
+	// Si el LLM principal es Gemini (con Google Search Grounding), usamos
+	// OpenRouter para background (scheduler, extractores, etc.) para no
+	// consumir la cuota gratuita de Gemini (20 requests/día en free tier).
+	var bgLLM agentllm.LLM
+	if geminiAPIKey != "" {
+		bgLLM = openAILLM
+	} else {
+		bgLLM = llm // mismo LLM si no hay Gemini
+	}
+
 	// ── Aria (orquestador) ────────────────────────────────────────────────────
 	aria := agent.New(llm, sqlite.Db, logger, modules,
+		agent.WithBackgroundLLM(bgLLM),
 		agent.WithRepos(agent.Repos{
 			Config:    configRepo,
 			Tasks:     taskRepo,

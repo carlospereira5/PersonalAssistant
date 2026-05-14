@@ -17,6 +17,7 @@ type Module struct {
 	repo       domain.SchedulerRepository
 	configRepo domain.ConfigRepository
 	llm        agentllm.LLM
+	bgLLM      agentllm.LLM // LLM para ejecución background (usa BackgroundLLM si está configurada)
 	messenger  agent.Messenger
 	cronParser cron.Parser
 	logger     *charm.Logger
@@ -31,6 +32,10 @@ func (m *Module) Init(deps agent.PortDeps) error {
 	m.repo = deps.Scheduler
 	m.configRepo = deps.Config
 	m.llm = deps.LLM
+	m.bgLLM = deps.LLM // default: mismo LLM que el chat principal
+	if deps.BackgroundLLM != nil {
+		m.bgLLM = deps.BackgroundLLM // si hay uno específico para background, usarlo
+	}
 	m.messenger = deps.Messenger
 	m.logger = deps.Logger
 	m.cronParser = cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)

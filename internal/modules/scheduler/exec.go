@@ -94,15 +94,17 @@ func (m *Module) isDue(r domain.ScheduledRoutine, schedule cron.Schedule, now ti
 }
 
 // executePrompt llama al LLM con el prompt de la rutina y retorna la respuesta.
+// Usa BackgroundLLM si está configurado, para no consumir cuota del LLM principal.
 func (m *Module) executePrompt(ctx context.Context, r domain.ScheduledRoutine) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, llmTimeout)
 	defer cancel()
 
-	session, err := m.llm.NewSession(ctx, "", nil)
+	session, err := m.bgLLM.NewSession(ctx, "", nil)
 	if err != nil {
 		return "", fmt.Errorf("error creando sesión LLM para rutina %d: %w", r.ID, err)
 	}
 
+	// Sin tools para ejecución background — es un prompt directo.
 	text, _, err := session.Send(ctx, r.Prompt)
 	if err != nil {
 		return "", fmt.Errorf("error ejecutando prompt de rutina %d: %w", r.ID, err)

@@ -53,6 +53,12 @@ type PortDeps struct {
 	LLM       agentllm.LLM
 	Messenger Messenger
 
+	// BackgroundLLM es un LLM alternativo para operaciones background (scheduler,
+	// extractores, etc.). Si no se configura, se usa LLM por defecto.
+	// Útil para reservar LLMs con capacidades especiales (Google Search Grounding)
+	// solo para el chat principal, y usar LLMs más económicos para background.
+	BackgroundLLM agentllm.LLM
+
 	// Repos pre-construidos para uso directo en módulos.
 	Config    domain.ConfigRepository
 	Tasks     domain.TaskRepository

@@ -46,14 +46,15 @@ func (a *Aria) provisionModules() {
 // buildDeps construye el PortDeps base provisionado a cada módulo.
 func (a *Aria) buildDeps() PortDeps {
 	return PortDeps{
-		DB:        a.db,
-		Logger:    a.logger,
-		LLM:       a.llm,
-		Messenger: a.messenger,
-		Config:    a.repos.Config,
-		Tasks:     a.repos.Tasks,
-		Reminders: a.repos.Reminders,
-		Scheduler: a.repos.Scheduler,
+		DB:            a.db,
+		Logger:        a.logger,
+		LLM:           a.llm,
+		BackgroundLLM: a.bgLLM,
+		Messenger:     a.messenger,
+		Config:        a.repos.Config,
+		Tasks:         a.repos.Tasks,
+		Reminders:     a.repos.Reminders,
+		Scheduler:     a.repos.Scheduler,
 	}
 }
 

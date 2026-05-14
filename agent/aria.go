@@ -21,6 +21,7 @@ import (
 // Aria orquesta el flujo conversacional.
 type Aria struct {
 	llm       agentllm.LLM
+	bgLLM     agentllm.LLM
 	messenger Messenger
 	executor  *Executor
 	db        *sql.DB
@@ -86,4 +87,11 @@ func WithHook(hook AgentHook) Option {
 		}
 		a.hooks.Register(hook)
 	}
+}
+
+// WithBackgroundLLM configura un LLM alternativo para procesos background
+// (scheduler, extractores de memoria, etc.). Útil para reservar LLMs con
+// capacidades especiales (Google Search Grounding) solo para el chat principal.
+func WithBackgroundLLM(llm agentllm.LLM) Option {
+	return func(a *Aria) { a.bgLLM = llm }
 }
