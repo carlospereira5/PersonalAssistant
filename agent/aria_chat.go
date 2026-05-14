@@ -18,6 +18,17 @@ func (a *Aria) Chat(ctx context.Context, userID, message string) (string, error)
 // ChatWithMessenger permite inyectar un Messenger específico para esta sesión.
 func (a *Aria) ChatWithMessenger(ctx context.Context, userID, message string, m Messenger) (string, error) {
 	a.logger.Info("Mensaje recibido", "user", userID, "msg_len", len(message))
+
+	// Hook: pre-procesamiento del mensaje antes de enviarlo al LLM.
+	if a.hooks != nil {
+		var err error
+		message, err = a.hooks.OnMessage(ctx, userID, message)
+		if err != nil {
+			a.logger.Warn("OnMessage hook falló", "err", err)
+			// Continuamos con el mensaje original — los hooks no bloquean el flujo.
+		}
+	}
+
 	if m == nil {
 		m = a.messenger
 	}
@@ -34,6 +45,13 @@ func (a *Aria) ChatWithMessenger(ctx context.Context, userID, message string, m 
 		return "", fmt.Errorf("LLM send: %w", err)
 	}
 
+	// Hook: post-procesamiento de la respuesta del LLM.
+	if a.hooks != nil {
+		if err := a.hooks.OnResponse(ctx, userID, text); err != nil {
+			a.logger.Warn("OnResponse hook falló", "err", err)
+		}
+	}
+
 	// Loop de function calling — máximo 5 iteraciones.
 	for i := 0; i < 5 && len(calls) > 0; i++ {
 		a.logger.Info("Ejecutando herramientas", "cantidad", len(calls))
@@ -41,16 +59,43 @@ func (a *Aria) ChatWithMessenger(ctx context.Context, userID, message string, m 
 		if execErr != nil {
 			return "", fmt.Errorf("ejecución de tools: %w", execErr)
 		}
+
+		// Hook: post-procesamiento de cada tool result.
+		// Pareamos results con calls por índice para acceder a los args originales.
+		if a.hooks != nil {
+			for i, res := range results {
+				args := calls[i].Args
+				if err := a.hooks.OnToolResult(ctx, userID, res.Name, args, res.Result); err != nil {
+					a.logger.Warn("OnToolResult hook falló", "tool", res.Name, "err", err)
+				}
+			}
+		}
+
 		text, calls, err = session.SendToolResults(ctx, results)
 		if err != nil {
 			return "", fmt.Errorf("tool results al LLM: %w", err)
 		}
+
+		// Hook: post-procesamiento de cada respuesta intermedia del LLM.
+		if a.hooks != nil {
+			if err := a.hooks.OnResponse(ctx, userID, text); err != nil {
+				a.logger.Warn("OnResponse hook falló", "err", err)
+			}
+		}
 	}
 
 	if text == "" {
-		return "No pude generar una respuesta. Intentá reformular tu pregunta.", nil
+		text = "No pude generar una respuesta. Intentá reformular tu pregunta."
 	}
 	a.logger.Info("Respuesta generada", "user", userID, "resp_len", len(text))
+
+	// Hook: fin del turno de conversación.
+	if a.hooks != nil {
+		if err := a.hooks.OnSessionEnd(ctx, userID); err != nil {
+			a.logger.Warn("OnSessionEnd hook falló", "err", err)
+		}
+	}
+
 	return text, nil
 }
 

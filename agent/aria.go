@@ -29,6 +29,7 @@ type Aria struct {
 	logger    *log.Logger
 	registry  *ToolRegistry
 	modules   []Module
+	hooks     *HookRegistry
 }
 
 // Repos agrupa los repositorios de dominio disponibles para los módulos.
@@ -74,4 +75,15 @@ func WithMessenger(m Messenger) Option {
 // WithRepos inyecta los repositorios de dominio para uso en módulos.
 func WithRepos(r Repos) Option {
 	return func(a *Aria) { a.repos = r }
+}
+
+// WithHook registra un lifecycle hook en el agente.
+// Los hooks se ejecutan en orden de registro.
+func WithHook(hook AgentHook) Option {
+	return func(a *Aria) {
+		if a.hooks == nil {
+			a.hooks = NewHookRegistry()
+		}
+		a.hooks.Register(hook)
+	}
 }
