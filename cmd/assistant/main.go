@@ -16,10 +16,12 @@ package main
 
 import (
 	"context"
+	"net"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	charm "github.com/charmbracelet/log"
 	"github.com/sashabaranov/go-openai"
@@ -35,6 +37,22 @@ import (
 	"github.com/carlospereira5/PersonalAssistant/reminders"
 	"github.com/carlospereira5/PersonalAssistant/whatsapp"
 )
+
+// init reemplaza el resolver DNS por defecto para usar 8.8.8.8 directamente.
+// En Android+Tailscale, el proxy DNS local (127.0.0.1:53) de Tailscale se cae
+// cuando el dispositivo entra en suspensión. Con este override, toda resolución
+// DNS (whatsmeow, OpenRouter, etc.) va directo a 8.8.8.8 sin depender de Tailscale.
+func init() {
+	net.DefaultResolver = &net.Resolver{
+		PreferGo: true,
+		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+			// Ignoramos address (que vendría de /etc/resolv.conf o del default)
+			// y vamos directo a 8.8.8.8:53 con timeout de 5 segundos.
+			d := net.Dialer{Timeout: 5 * time.Second}
+			return d.DialContext(ctx, "udp", "8.8.8.8:53")
+		},
+	}
+}
 
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
